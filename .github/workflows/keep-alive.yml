@@ -1,0 +1,30 @@
+name: Keep-Alive
+
+# Pings Render API and Supabase every 10 minutes during 05:00–24:00 WIB (22:00–17:00 UTC)
+# Prevents Render cold start (15 min idle sleep) and Supabase auto-pause (7 days idle)
+on:
+  schedule:
+    # */10 at 22:00–23:59 UTC and 00:00–17:00 UTC = 05:00–24:00 WIB (UTC+7)
+    - cron: "*/10 22,23,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health endpoint
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.RENDER_API_URL }}/health" || echo "000")
+          echo "API status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::API health check returned $STATUS — may be cold-starting"
+          fi
+
+      - name: Ping Supabase (keep DB awake)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/" || echo "000")
+          echo "Supabase status: $STATUS"

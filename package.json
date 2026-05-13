@@ -1,0 +1,19 @@
+{
+  "name": "personal-invest-dashboard",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "lint": "pnpm --filter \"*\" lint",
+    "codegen": "bash packages/shared/scripts/codegen.sh",
+    "typecheck": "pnpm --filter \"*\" typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "openapi-typescript": "^7.4.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}

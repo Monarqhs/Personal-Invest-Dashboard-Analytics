@@ -1,0 +1,24 @@
+dashboard:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: postgres
+      password: postgres
+      port: 5432
+      dbname: dashboard_dev
+      schema: public
+      threads: 4
+    prod:
+      type: postgres
+      # Use direct connection (port 5432) for dbt — not PgBouncer (6543)
+      # PgBouncer transaction mode doesn't support SET statements used by dbt
+      host: "{{ env_var('SUPABASE_DB_HOST') }}"
+      user: postgres
+      password: "{{ env_var('SUPABASE_DB_PASSWORD') }}"
+      port: 5432
+      dbname: postgres
+      schema: public
+      threads: 4
+      sslmode: require
