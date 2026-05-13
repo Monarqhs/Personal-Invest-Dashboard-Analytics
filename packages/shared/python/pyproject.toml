@@ -5,6 +5,8 @@ requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.9.0",
     "structlog>=24.4.0",
+    "tenacity>=9.0.0",
+    "pandas>=2.2.0",
 ]
 
 [build-system]

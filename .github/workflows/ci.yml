@@ -70,6 +70,7 @@ jobs:
           uv pip install --system -e "apps/api[dev]"
           uv pip install --system -e "packages/pipelines[dev]"
       - name: Run API tests
+        working-directory: apps/api
         env:
           DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/dashboard_dev"
           AUTH_ENFORCEMENT_ENABLED: "false"
@@ -77,14 +78,14 @@ jobs:
           CACHE_PROVIDER: "inmemory"
           LOG_LEVEL: "WARNING"
           ENVIRONMENT: "test"
-        run: uv tool run pytest apps/api/tests --tb=short -q
+        run: uv tool run pytest tests/ --tb=short -q
+      - name: Install pipelines
+        run: uv pip install --system -e "packages/pipelines[dev]"
       - name: Run pipeline tests
-        run: |
-          if [ -d "packages/pipelines/tests" ] && [ "$(ls -A packages/pipelines/tests)" ]; then
-            uv tool run pytest packages/pipelines/tests --tb=short -q
-          else
-            echo "No pipeline tests yet — stub passes"
-          fi
+        working-directory: packages/pipelines
+        env:
+          ENVIRONMENT: "test"
+        run: uv tool run pytest tests/ --tb=short -q
 
   # ─── Frontend linting ──────────────────────────────────────────────────────
   lint-frontend:

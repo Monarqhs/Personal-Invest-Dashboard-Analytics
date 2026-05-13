@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Sequence
 
 from pydantic import BaseModel, Field
@@ -14,7 +14,7 @@ class OHLCVBar(BaseModel):
     close: float
     volume: float
     adjusted_close: float | None = None
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class MarketDataProvider(ABC):
