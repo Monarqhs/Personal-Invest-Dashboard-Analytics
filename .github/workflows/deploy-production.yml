@@ -1,0 +1,93 @@
+name: Deploy — Production
+
+# Triggered by merge into main. Deploys API to Render production service
+# and promotes the Vercel build to production alias.
+on:
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  deploy-api-production:
+    name: Deploy API → Render (production)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Render deploy hook
+        run: |
+          if [ -z "${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}" ]; then
+            echo "::warning::RENDER_PRODUCTION_DEPLOY_HOOK not set — skipping"
+            exit 0
+          fi
+          STATUS=$(curl -s -o /tmp/render_resp.json -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}")
+          cat /tmp/render_resp.json
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
+            echo "::error::Render deploy hook returned HTTP $STATUS"
+            exit 1
+          fi
+          echo "Render production deploy triggered"
+
+  deploy-web-production:
+    name: Deploy Web → Vercel (production)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Deploy to Vercel production
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN not set — skipping"
+            exit 0
+          fi
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          vercel build --prod --token=$VERCEL_TOKEN
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN)
+          echo "Production deployed: $DEPLOY_URL"
+          echo "DEPLOY_URL=$DEPLOY_URL" >> $GITHUB_STEP_SUMMARY
+
+  smoke-test-production:
+    name: Smoke test production API
+    runs-on: ubuntu-latest
+    needs: [deploy-api-production]
+    steps:
+      - name: Wait for Render deploy
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          if [ -z "${{ secrets.RENDER_PRODUCTION_URL }}" ]; then
+            echo "::warning::RENDER_PRODUCTION_URL not set — skipping"
+            exit 0
+          fi
+          for i in {1..8}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "${{ secrets.RENDER_PRODUCTION_URL }}/health" || echo "000")
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Production API healthy"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Production health check failed"
+          exit 1
